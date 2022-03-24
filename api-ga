@@ -1,4 +1,4 @@
-!!pip install google-analytics-data
+!pip install google-analytics-data
 import pandas as pd
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import DateRange
@@ -18,56 +18,52 @@ def run_sample():
     # TODO(developer): Replace this variable with your Google Analytics 4
     #  property ID before running the sample.
     property_id = 257807480
-    run_report(property_id)
+    return run_report(property_id)
 
 
 def run_report(property_id):
     """Runs a report of active users grouped by country."""
     client = BetaAnalyticsDataClient.from_service_account_json("api_testing.json")
-
     request = RunReportRequest(
+        
         property=f"properties/{property_id}",
         
-        dimensions=[Dimension(name="eventName"),
+        dimensions=[
                     Dimension(name="pageTitle"),
-                    Dimension(name="pageReferrer")
+                    Dimension(name="pagePathPlusQueryString")
                    ],
         
-        metrics=[Metric(name="screenPageViews"),
+        metrics=[Metric(name="activeUsers")
                ],
         
-        date_ranges=[DateRange(start_date="2021-01-01", end_date="today")
+        date_ranges=[DateRange(start_date="7daysAgo", end_date="today")
                     ],
-        
-        orderBys=[
-            {
-                "metricsName" : "screenPageViews"
-                }
+
+    )
+    
+    return client.run_report(request)
+
+
+data_api = run_sample()
+dataframe_api = pd.DataFrame(
+        [
+            [i.dimension_values[0].value,i.dimension_values[1].value, i.metric_values[0].value]
+            for i in data_api.rows
         ]
-    )
-    response = client.run_report(request)
-    print_run_report_response(response)
-
-
-def print_run_report_response(response):
-    """Prints results of a runReport call."""
-    display(
-        pd.DataFrame(
-            [
-                [i.dimension_values[0].value,i.dimension_values[1].value,i.dimension_values[1].value, i.metric_values[0].value]
-                for i in response.rows
-            ]
-        ).rename(
-            columns={
-                0: response.dimension_headers[0].name,
-                1: response.dimension_headers[1].name,
-                2: response.dimension_headers[2].name,
-                3: response.metric_headers[0].name,
-            }
-        )
+    ).rename(
+        columns={
+            0: data_api.dimension_headers[0].name,
+            1: data_api.dimension_headers[1].name,
+            2: data_api.metric_headers[0].name,
+        }
     )
 
+# change the datatype of active user to int from string 
+dataframe_api['activeUsers'] = dataframe_api['activeUsers'].astype(int)
 
-run_sample()
+# take only the top 10 record with the highest active users 
+dataframe_api_1 = dataframe_api.nlargest(n=10, columns=['activeUsers'], keep='all')
+
+
                                 
             
